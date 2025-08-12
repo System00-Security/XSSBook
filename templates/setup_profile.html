@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Your Profile - XSSBook{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white text-center">
+                <h3 class="mb-0">
+                    <i class="fas fa-user-cog me-2"></i>Welcome to XSSBook!
+                </h3>
+                <p class="mb-0 mt-2">Let's complete your profile to get started</p>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('complete_profile') }}" method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="profile-picture-section">
+                                <div class="position-relative d-inline-block">
+                                    <img id="profile-preview" 
+                                         src="https://via.placeholder.com/150x150/1877f2/ffffff?text={{ user.name[0] }}" 
+                                         class="rounded-circle border border-3 border-primary shadow" 
+                                         style="width: 150px; height: 150px; object-fit: cover;" 
+                                         alt="Profile Picture">
+                                    <div class="position-absolute bottom-0 end-0">
+                                        <label for="avatar_file" class="btn btn-primary btn-sm rounded-circle" style="width: 35px; height: 35px;">
+                                            <i class="fas fa-camera"></i>
+                                        </label>
+                                    </div>
+                                </div>
+                                <h5 class="mt-3 mb-1">{{ user.name }}</h5>
+                                <small class="text-muted">@{{ user.username }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="bio" class="form-label">
+                                    <i class="fas fa-info-circle me-1"></i>Tell us about yourself
+                                </label>
+                                <textarea class="form-control" id="bio" name="bio" rows="4" 
+                                          placeholder="Share something interesting about yourself..."></textarea>
+                                <div class="form-text">This will be visible on your profile</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="avatar_url" class="form-label">
+                                    <i class="fas fa-link me-1"></i>Profile Picture URL (Optional)
+                                </label>
+                                <input type="url" class="form-control" id="avatar_url" name="avatar_url" 
+                                       placeholder="https://example.com/your-photo.jpg">
+                                <div class="form-text">Or upload a file below</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="avatar_file" class="form-label">
+                                    <i class="fas fa-upload me-1"></i>Upload Profile Picture
+                                </label>
+                                <input type="file" class="form-control" id="avatar_file" name="avatar_file" 
+                                       accept="image/*" style="display: none;">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="file-name" placeholder="No file chosen" readonly>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('avatar_file').click()">
+                                        <i class="fas fa-folder-open me-1"></i>Browse
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="getRandomAvatar()">
+                                    <i class="fas fa-random me-1"></i>Get Random Avatar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            You can always update your profile later
+                        </small>
+                        <div>
+                            <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check me-1"></i>Complete Setup
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Tips Card -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Quick Tips
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                        <h6>Connect with Friends</h6>
+                        <small class="text-muted">Find and add friends to see their posts in your feed</small>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-camera fa-2x text-primary mb-2"></i>
+                        <h6>Share Moments</h6>
+                        <small class="text-muted">Post photos, videos, and thoughts to share with your network</small>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-heart fa-2x text-primary mb-2"></i>
+                        <h6>Engage</h6>
+                        <small class="text-muted">Like and comment on posts to stay connected</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Handle file selection
+    document.getElementById('avatar_file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('file-name').value = file.name;
+            
+            // Preview the image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('profile-preview').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Handle URL input
+    document.getElementById('avatar_url').addEventListener('input', function(e) {
+        const url = e.target.value;
+        if (url) {
+            document.getElementById('profile-preview').src = url;
+        }
+    });
+    
+    // Get random avatar
+    function getRandomAvatar() {
+        fetch('https://randomuser.me/api/')
+        .then(response => response.json())
+        .then(data => {
+            const avatarUrl = data.results[0].picture.large;
+            document.getElementById('avatar_url').value = avatarUrl;
+            document.getElementById('profile-preview').src = avatarUrl;
+        })
+        .catch(error => {
+            console.error('Error fetching random avatar:', error);
+            alert('Failed to get random avatar. Please try again.');
+        });
+    }
+</script>
+{% endblock %}

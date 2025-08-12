@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Personalize - XSSBook{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-cog me-2"></i>Personalize Your Experience
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Customization Options</h5>
+                        <div class="list-group">
+                            <button class="list-group-item list-group-item-action" onclick="setTheme('light')">
+                                <i class="fas fa-sun me-2"></i>Light Theme
+                            </button>
+                            <button class="list-group-item list-group-item-action" onclick="setTheme('dark')">
+                                <i class="fas fa-moon me-2"></i>Dark Theme
+                            </button>
+                            <button class="list-group-item list-group-item-action" onclick="setLanguage('en')">
+                                <i class="fas fa-language me-2"></i>English
+                            </button>
+                            <button class="list-group-item list-group-item-action" onclick="setLanguage('es')">
+                                <i class="fas fa-language me-2"></i>Español
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5>Welcome Message</h5>
+                        <!-- VULNERABLE: DOM-based XSS through URL parameter -->
+                        <div id="welcome-message" class="alert alert-info">
+                            <i class="fas fa-user me-2"></i>
+                            <span id="user-greeting">Welcome to XSSBook!</span>
+                        </div>
+                        
+                        <h5>Notification Preferences</h5>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                            <label class="form-check-label" for="emailNotifications">
+                                Email Notifications
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="browserNotifications">
+                            <label class="form-check-label" for="browserNotifications">
+                                Browser Notifications
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <h5>Profile Customization</h5>
+                        <p class="text-muted">
+                            Customize your XSSBook experience with personal preferences and settings.
+                        </p>
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Tip:</strong> Changes you make here will be reflected across your profile and feed.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // VULNERABLE: DOM-based XSS vulnerability
+    function updateGreeting() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const greeting = urlParams.get('greeting');
+        
+        if (greeting) {
+            // VULNERABLE: Direct innerHTML assignment without sanitization
+            document.getElementById('user-greeting').innerHTML = 'Welcome, ' + greeting + '!';
+        }
+    }
+    
+    function setTheme(theme) {
+        // Simulate theme change
+        alert('Theme changed to: ' + theme);
+        // In a real app, this would change CSS classes or load different stylesheets
+    }
+    
+    function setLanguage(lang) {
+        // Simulate language change
+        alert('Language changed to: ' + lang);
+        // In a real app, this would reload content in the selected language
+    }
+    
+    // Call updateGreeting when page loads
+    document.addEventListener('DOMContentLoaded', updateGreeting);
+</script>
+{% endblock %}

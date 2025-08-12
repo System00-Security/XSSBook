@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Create Post Box (only if logged in) -->
+        {% if session.user_id %}
+        <div class="create-post-box">
+            <form action="{{ url_for('create_post') }}" method="POST" enctype="multipart/form-data">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="{% if current_user and current_user.avatar %}{{ current_user.avatar }}{% else %}https://via.placeholder.com/40x40/1877f2/ffffff?text={{ session.name[0] }}{% endif %}" 
+                         class="avatar me-3 lazy-img" alt="Avatar" loading="lazy">
+                    <textarea class="form-control" name="content" rows="3" 
+                              placeholder="What's on your mind, {{ session.name }}?" required></textarea>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="media_type" id="no_media" value="none" checked>
+                            <label class="btn btn-outline-secondary" for="no_media">
+                                <i class="fas fa-text-width me-1"></i>Text Only
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="media_type" id="image_media" value="image">
+                            <label class="btn btn-outline-secondary" for="image_media" onclick="selectMediaType('image')">
+                                <i class="fas fa-image me-1"></i>Image URL
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="media_type" id="video_media" value="video">
+                            <label class="btn btn-outline-secondary" for="video_media" onclick="selectMediaType('video')">
+                                <i class="fas fa-video me-1"></i>Video URL
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="media_type" id="upload_media" value="upload">
+                            <label class="btn btn-outline-secondary" for="upload_media" onclick="selectMediaType('upload')">
+                                <i class="fas fa-upload me-1"></i>Upload File
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="url" class="form-control mb-2" name="image_url" id="image_url" 
+                       placeholder="Enter image URL" style="display: none;">
+                
+                <input type="url" class="form-control mb-2" name="video_url" id="video_url" 
+                       placeholder="Enter video URL" style="display: none;">
+                
+                <input type="file" class="form-control mb-2" name="file" id="file" 
+                       accept="image/*,video/*" style="display: none;">
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="useRandomImage()">
+                        <i class="fas fa-random me-1"></i>Random Image
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>Post
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Posts Feed -->
+        {% for post in posts %}
+        <div class="post-card">
+            <!-- Post Header -->
+            <div class="post-header">
+                <div class="d-flex align-items-center">
+                    <img src="{% if post.avatar %}{{ post.avatar }}{% else %}https://via.placeholder.com/40x40/1877f2/ffffff?text={{ post.name[0] }}{% endif %}" 
+                         class="avatar me-3 lazy-img" alt="Avatar" loading="lazy">
+                    <div>
+                        <h6 class="mb-0">
+                            <a href="{{ url_for('profile', username=post.username) }}" class="text-decoration-none">
+                                {{ post.name }}
+                            </a>
+                        </h6>
+                        <small class="text-muted">@{{ post.username }} • {{ post.created_at }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Post Content -->
+            <div class="post-content">
+                <p class="mb-3">{{ post.content|safe }}</p>
+                
+                <!-- Media Content -->
+                {% if post.image_url %}
+                <div class="mb-3">
+                    <img src="{{ post.image_url }}" class="img-fluid rounded lazy-img" alt="Post image" 
+                         style="max-width: 100%; height: auto;" loading="lazy">
+                </div>
+                {% endif %}
+                
+                {% if post.video_url %}
+                <div class="mb-3">
+                    <video controls class="w-100 rounded" style="max-height: 400px;">
+                        <source src="{{ post.video_url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Post Actions -->
+            <div class="post-actions">
+                <button class="post-action-btn" onclick="likePost({{ post.id }})">
+                    <i class="far fa-thumbs-up me-1"></i>Like
+                    <span id="like-count-{{ post.id }}">({{ post.like_count }})</span>
+                </button>
+                
+                <button class="post-action-btn" onclick="toggleComments({{ post.id }})">
+                    <i class="far fa-comment me-1"></i>Comment
+                    <span>({{ post.comment_count }})</span>
+                </button>
+                
+                <button class="post-action-btn">
+                    <i class="far fa-share-square me-1"></i>Share
+                </button>
+            </div>
+
+            <!-- Comments Section -->
+            <div id="comments-{{ post.id }}" style="display: none;">
+                <div class="comment-box">
+                    <div class="comments-container mb-3">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                    
+                    {% if session.user_id %}
+                    <div class="d-flex align-items-center">
+                        <img src="{% if current_user and current_user.avatar %}{{ current_user.avatar }}{% else %}https://via.placeholder.com/32x32/1877f2/ffffff?text={{ session.name[0] }}{% endif %}" 
+                             class="avatar me-2" style="width: 32px; height: 32px; object-fit: cover;" alt="Avatar">
+                        <div class="flex-grow-1">
+                            <textarea class="form-control form-control-sm" id="comment-input-{{ post.id }}" 
+                                    placeholder="Write a comment..." rows="1"></textarea>
+                        </div>
+                        <button class="btn btn-sm btn-primary ms-2" onclick="submitComment({{ post.id }})">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">
+                        <a href="{{ url_for('login') }}">Login</a> to comment
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not posts %}
+        <div class="text-center py-5">
+            <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No posts yet</h4>
+            <p class="text-muted">Be the first to share something!</p>
+            {% if not session.user_id %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-1"></i>Join XSSBook
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Conversations sidebar -->
+        <div class="col-md-4 col-lg-3 pe-0">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments"></i> Messages</h5>
+                </div>
+                
+                <!-- Friend Search -->
+                <div class="card-body p-3 border-bottom">
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="friend-search" class="form-control" placeholder="Search friends..." autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Search Results -->
+                    <div id="search-results" class="mt-2" style="display: none;">
+                        <div class="small text-muted mb-2">Search Results:</div>
+                        <div id="search-results-list"></div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0" style="max-height: 60vh; overflow-y: auto;">
+                    <div id="conversations-list">
+                        <!-- Conversations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat area -->
+        <div class="col-md-8 col-lg-9 ps-0">
+            <div class="card h-100">
+                <div class="card-header bg-light" id="chat-header" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <img id="chat-avatar" src="" alt="" class="rounded-circle me-3" width="40" height="40">
+                        <div>
+                            <h6 class="mb-0" id="chat-name"></h6>
+                            <small class="text-muted">Active now</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body d-flex flex-column" style="height: 70vh;">
+                    <div id="no-chat-selected" class="flex-grow-1 d-flex align-items-center justify-content-center">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-comments fa-3x mb-3"></i>
+                            <h5>Select a conversation to start messaging</h5>
+                            <p>Choose from your existing conversations or search for friends</p>
+                        </div>
+                    </div>
+                    
+                    <div id="chat-messages" class="flex-grow-1 mb-3" style="overflow-y: auto; display: none;">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                    
+                    <div id="chat-input-area" style="display: none;">
+                        <div class="input-group">
+                            <input type="text" id="message-input" class="form-control" placeholder="Type a message..." maxlength="500">
+                            <button class="btn btn-primary" type="button" id="send-btn">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentChatUserId = null;
+
+function loadConversations() {
+    fetch('/get_conversations')
+        .then(response => response.json())
+        .then(data => {
+            const conversationsList = document.getElementById('conversations-list');
+            conversationsList.innerHTML = '';
+            
+            if (data.conversations && data.conversations.length > 0) {
+                data.conversations.forEach(conv => {
+                    const convElement = document.createElement('div');
+                    convElement.className = 'conversation-item p-3 border-bottom';
+                    convElement.style.cursor = 'pointer';
+                    convElement.onclick = () => openChat(conv.other_user.id, conv.other_user.name, conv.other_user.avatar);
+                    
+                    convElement.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <img src="${conv.other_user.avatar}" alt="${conv.other_user.name}" class="rounded-circle me-3" width="50" height="50">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">${conv.other_user.name}</h6>
+                                <p class="mb-0 text-muted small">${conv.last_message ? conv.last_message.substring(0, 30) + '...' : 'No messages yet'}</p>
+                            </div>
+                            ${conv.unread_count > 0 ? `<span class="badge bg-primary rounded-pill">${conv.unread_count}</span>` : ''}
+                        </div>
+                    `;
+                    
+                    conversationsList.appendChild(convElement);
+                });
+            } else {
+                conversationsList.innerHTML = '<div class="p-3 text-center text-muted">No conversations yet<br><small>Search for friends above to start chatting</small></div>';
+            }
+        })
+        .catch(error => console.error('Error loading conversations:', error));
+}
+
+function openChat(userId, userName, userAvatar) {
+    currentChatUserId = userId;
+    
+    // Update chat header
+    document.getElementById('chat-avatar').src = userAvatar;
+    document.getElementById('chat-name').textContent = userName;
+    
+    // Show chat elements
+    document.getElementById('no-chat-selected').style.display = 'none';
+    document.getElementById('chat-header').style.display = 'block';
+    document.getElementById('chat-messages').style.display = 'block';
+    document.getElementById('chat-input-area').style.display = 'block';
+    
+    // Load messages
+    loadMessages(userId);
+    
+    // Highlight selected conversation
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.remove('bg-light');
+    });
+    event.currentTarget.classList.add('bg-light');
+}
+
+function loadMessages(userId) {
+    fetch(`/get_messages/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.innerHTML = '';
+            
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(message => {
+                    const messageElement = document.createElement('div');
+                    const isCurrentUser = message.sender_id === parseInt('{{ current_user.id }}');
+                    
+                    messageElement.className = `mb-3 d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`;
+                    
+                    const messageTime = new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    messageElement.innerHTML = `
+                        <div class="message ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'} rounded p-2" style="max-width: 70%;">
+                            <div>${message.content}</div>
+                            <small class="d-block mt-1 ${isCurrentUser ? 'text-white-50' : 'text-muted'}">${messageTime}</small>
+                        </div>
+                    `;
+                    
+                    messagesContainer.appendChild(messageElement);
+                });
+                
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } else {
+                messagesContainer.innerHTML = '<div class="text-center text-muted p-3">No messages yet. Start the conversation!</div>';
+            }
+        })
+        .catch(error => console.error('Error loading messages:', error));
+}
+
+function sendMessage() {
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    
+    if (!message || !currentChatUserId) return;
+    
+    // Clear input immediately
+    messageInput.value = '';
+    
+    // Show typing indicator for dummy users
+    showTypingIndicator();
+    
+    fetch('/send_message', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            receiver_id: currentChatUserId,
+            content: message
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Load messages immediately to show user's message
+            loadMessages(currentChatUserId);
+            
+            // For dummy users, load messages again after a short delay to get their response
+            setTimeout(() => {
+                loadMessages(currentChatUserId);
+                loadConversations(); // Refresh conversations to update last message
+                hideTypingIndicator();
+            }, 1500);
+        } else {
+            alert('Error sending message: ' + (data.error || 'Unknown error'));
+            hideTypingIndicator();
+        }
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        alert('Error sending message');
+        hideTypingIndicator();
+    });
+}
+
+function showTypingIndicator() {
+    const messagesContainer = document.getElementById('chat-messages');
+    let typingDiv = document.getElementById('typing-indicator');
+    
+    if (!typingDiv) {
+        typingDiv = document.createElement('div');
+        typingDiv.id = 'typing-indicator';
+        typingDiv.className = 'typing-indicator d-flex justify-content-start mb-3';
+        typingDiv.innerHTML = `
+            <div class="bg-light rounded p-2">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-grow spinner-grow-sm text-secondary me-2" style="width: 0.5rem; height: 0.5rem;"></div>
+                    <small class="text-muted">Typing...</small>
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(typingDiv);
+    }
+    
+    typingDiv.style.display = 'flex';
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingDiv = document.getElementById('typing-indicator');
+    if (typingDiv) {
+        typingDiv.style.display = 'none';
+    }
+}
+
+// Event listeners
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('message-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// Friend search functionality
+document.getElementById('friend-search').addEventListener('input', function() {
+    const query = this.value.trim();
+    if (query.length >= 2) {
+        searchFriends(query);
+    } else {
+        document.getElementById('search-results').style.display = 'none';
+    }
+});
+
+document.getElementById('search-btn').addEventListener('click', function() {
+    const query = document.getElementById('friend-search').value.trim();
+    if (query.length >= 2) {
+        searchFriends(query);
+    }
+});
+
+function searchFriends(query) {
+    fetch(`/search_friends?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            const searchResults = document.getElementById('search-results');
+            const searchResultsList = document.getElementById('search-results-list');
+            
+            if (data.friends && data.friends.length > 0) {
+                searchResultsList.innerHTML = '';
+                data.friends.forEach(friend => {
+                    const friendElement = document.createElement('div');
+                    friendElement.className = 'search-result-item d-flex align-items-center p-2 border rounded mb-1';
+                    friendElement.style.cursor = 'pointer';
+                    friendElement.onclick = () => {
+                        startConversationWithUser(friend.id, friend.name, friend.avatar);
+                        document.getElementById('friend-search').value = '';
+                        searchResults.style.display = 'none';
+                    };
+                    
+                    friendElement.innerHTML = `
+                        <img src="${friend.avatar}" alt="${friend.name}" class="rounded-circle me-2" width="30" height="30">
+                        <div>
+                            <div class="fw-semibold small">${friend.name}</div>
+                            <div class="text-muted" style="font-size: 0.8rem;">@${friend.username}</div>
+                        </div>
+                    `;
+                    
+                    searchResultsList.appendChild(friendElement);
+                });
+                searchResults.style.display = 'block';
+            } else {
+                searchResultsList.innerHTML = '<div class="text-muted small p-2">No friends found</div>';
+                searchResults.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error searching friends:', error);
+        });
+}
+
+function startConversationWithUser(userId, userName, userAvatar) {
+    // Start conversation via API
+    fetch('/start_conversation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Open the chat
+            openChat(userId, userName, userAvatar);
+            // Refresh conversations list
+            loadConversations();
+        } else {
+            alert('Error starting conversation: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error starting conversation:', error);
+        alert('Error starting conversation');
+    });
+}
+
+// Hover effects for conversations
+document.addEventListener('mouseover', function(e) {
+    if (e.target.closest('.conversation-item')) {
+        e.target.closest('.conversation-item').classList.add('bg-light');
+    }
+});
+
+document.addEventListener('mouseout', function(e) {
+    if (e.target.closest('.conversation-item')) {
+        const item = e.target.closest('.conversation-item');
+        if (!item.classList.contains('active')) {
+            item.classList.remove('bg-light');
+        }
+    }
+});
+
+// Load conversations on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadConversations();
+    
+    // Auto-refresh conversations every 10 seconds
+    setInterval(loadConversations, 10000);
+    
+    // Auto-refresh current chat every 5 seconds
+    setInterval(() => {
+        if (currentChatUserId) {
+            loadMessages(currentChatUserId);
+        }
+    }, 5000);
+});
+</script>
+
+<style>
+.conversation-item:hover {
+    background-color: rgba(0,123,255,0.1) !important;
+}
+
+.conversation-item.active {
+    background-color: rgba(0,123,255,0.2) !important;
+}
+
+.message {
+    word-wrap: break-word;
+}
+
+#chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+#chat-messages::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#chat-messages::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.search-result-item:hover {
+    background-color: rgba(0,123,255,0.1) !important;
+}
+
+.search-result-item {
+    transition: background-color 0.2s ease;
+}
+
+#search-results {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#search-results::-webkit-scrollbar {
+    width: 4px;
+}
+
+#search-results::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#search-results::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 2px;
+}
+
+.message.bg-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3) !important;
+}
+
+.typing-indicator {
+    display: none;
+    padding: 10px;
+    font-style: italic;
+    color: #6c757d;
+}
+
+.online-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background-color: #28a745;
+    border: 2px solid white;
+    border-radius: 50%;
+}
+</style>
+{% endblock %}

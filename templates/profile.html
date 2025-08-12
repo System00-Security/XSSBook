@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.name }} - XSSBook{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="cover-photo" 
+                 style="background-image: {% if user.cover_photo %}url('{{ user.cover_photo }}'){% else %}linear-gradient(135deg, var(--facebook-blue), var(--facebook-light-blue)){% endif %}; background-size: cover; background-position: center; position: relative;">
+                {% if is_own_profile %}
+                <div class="position-absolute bottom-0 end-0 m-3">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#coverPhotoModal">
+                        <i class="fas fa-camera me-1"></i>Update Cover Photo
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="profile-info">
+                <img src="{% if user.avatar %}{{ user.avatar }}{% else %}https://via.placeholder.com/168x168/1877f2/ffffff?text={{ user.name[0] }}{% endif %}" 
+                     class="avatar-large lazy-img" alt="Profile Picture" loading="lazy">
+                <div class="profile-details">
+                    <h1>{{ user.name }}</h1>
+                    <p>@{{ user.username }}</p>
+                    {% if user.bio %}
+                    <p class="text-muted">{{ user.bio|safe }}</p>
+                    {% endif %}
+                    {% if user.signature %}
+                    <div class="signature mt-2" style="border-left: 3px solid var(--facebook-blue); padding-left: 12px;">
+                        {{ user.signature|safe }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 pt-5">
+            <!-- Profile Stats and Actions -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="profile-stats">
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ posts|length }}</div>
+                                    <div class="stat-label">Posts</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-number" id="friends-count">0</div>
+                                    <div class="stat-label">Friends</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ user.created_at[:4] }}</div>
+                                    <div class="stat-label">Joined</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="profile-actions">
+                        {% if session.user_id == user.id %}
+                        <a href="{{ url_for('edit_profile') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-edit me-1"></i>Edit Profile
+                        </a>
+                        <a href="{{ url_for('friends_page') }}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-users me-1"></i>Manage Friends
+                        </a>
+                        {% else %}
+                        <div id="friend-actions">
+                            {% if friendship_status == 'friends' %}
+                                <button class="btn btn-success w-100 mb-2" disabled>
+                                    <i class="fas fa-user-friends me-1"></i>Friends
+                                </button>
+                                <button class="btn btn-primary w-100" onclick="startConversationFromProfile({{ user.id }})">
+                                    <i class="fas fa-comment me-1"></i>Message
+                                </button>
+                            {% elif friendship_status == 'request_sent' %}
+                                <button class="btn btn-secondary w-100 mb-2" disabled>
+                                    <i class="fas fa-clock me-1"></i>Request Sent
+                                </button>
+                                <button class="btn btn-outline-secondary w-100" disabled>
+                                    <i class="fas fa-comment me-1"></i>Message
+                                </button>
+                            {% elif friendship_status == 'request_received' %}
+                                <button class="btn btn-warning w-100 mb-2" onclick="respondToFriendRequest({{ user.id }}, 'accept')">
+                                    <i class="fas fa-user-plus me-1"></i>Accept Request
+                                </button>
+                                <button class="btn btn-outline-danger w-100" onclick="respondToFriendRequest({{ user.id }}, 'decline')">
+                                    <i class="fas fa-user-times me-1"></i>Decline
+                                </button>
+                            {% else %}
+                                <button class="btn btn-primary w-100 mb-2" onclick="sendFriendRequest({{ user.id }})">
+                                    <i class="fas fa-user-plus me-1"></i>Add Friend
+                                </button>
+                                <button class="btn btn-outline-secondary w-100" disabled>
+                                    <i class="fas fa-comment me-1"></i>Message
+                                </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Information Cards -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                        <div class="card-header bg-light border-0" style="padding: 1rem 1.25rem;">
+                            <h6 class="mb-0 d-flex align-items-center">
+                                <div class="rounded-circle bg-info d-flex align-items-center justify-content-center me-2" 
+                                     style="width: 28px; height: 28px;">
+                                    <i class="fas fa-info-circle text-white" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <span class="fw-semibold">About</span>
+                            </h6>
+                        </div>
+                        <div class="card-body" style="padding: 1.25rem;">
+                            <div class="d-flex align-items-center mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 32px; height: 32px; min-width: 32px;">
+                                    <i class="fas fa-envelope text-white" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <span class="text-muted" style="font-size: 0.9rem; word-break: break-all;">{{ user.email|safe }}</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                                <div class="rounded-circle bg-success d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 32px; height: 32px; min-width: 32px;">
+                                    <i class="fas fa-calendar-alt text-white" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <span class="text-muted" style="font-size: 0.9rem;">Joined {{ user.created_at[:10] }}</span>
+                            </div>
+                            {% if user.bio %}
+                            <div class="mt-3 p-3 rounded" style="background-color: #f8f9fa; border-left: 4px solid var(--facebook-blue);">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-user text-primary me-2"></i>
+                                    <strong style="font-size: 0.9rem;">Bio</strong>
+                                </div>
+                                <p class="text-muted mb-0" style="font-size: 0.9rem; line-height: 1.5;">{{ user.bio|safe }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                        <div class="card-header bg-light border-0" style="padding: 1rem 1.25rem;">
+                            <h6 class="mb-0 d-flex align-items-center">
+                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
+                                     style="width: 28px; height: 28px;">
+                                    <i class="fas fa-users text-white" style="font-size: 0.8rem;"></i>
+                                </div>
+                                <span class="fw-semibold">Recent Friends</span>
+                                <span id="friends-badge" class="badge bg-primary rounded-pill ms-auto" style="font-size: 0.7rem;">0</span>
+                            </h6>
+                        </div>
+                        <div class="card-body" style="padding: 1.25rem;">
+                            <div id="recent-friends">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">Loading friends...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Posts Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-newspaper me-2"></i>Posts
+                        <span class="badge bg-secondary ms-2">{{ posts|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% for post in posts %}
+                    <div class="post-card mb-0" style="border: none; border-radius: 0;">
+                        <!-- Post Header -->
+                        <div class="post-header">
+                            <div class="d-flex align-items-center">
+                                <img src="{% if post.avatar %}{{ post.avatar }}{% else %}https://via.placeholder.com/40x40/1877f2/ffffff?text={{ post.name[0] }}{% endif %}" 
+                                     class="avatar me-3 lazy-img" alt="Avatar" loading="lazy">
+                                <div>
+                                    <h6 class="mb-0">{{ post.name }}</h6>
+                                    <small class="text-muted">@{{ post.username }} • {{ post.created_at }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Post Content -->
+                        <div class="post-content">
+                            <p class="mb-3">{{ post.content|safe }}</p>
+                            
+                            <!-- Media Content -->
+                            {% if post.image_url %}
+                            <div class="mb-3">
+                                <img data-src="{{ post.image_url }}" 
+                                     class="img-fluid rounded lazy-img img-placeholder" 
+                                     alt="Post image" 
+                                     style="max-width: 100%; height: auto; min-height: 200px;"
+                                     loading="lazy">
+                            </div>
+                            {% endif %}
+                            
+                            {% if post.video_url %}
+                            <div class="mb-3">
+                                <video controls class="w-100 rounded lazy-img" style="max-height: 400px;" loading="lazy">
+                                    <source src="{{ post.video_url }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Post Actions -->
+                        <div class="post-actions">
+                            <button class="post-action-btn" onclick="likePost({{ post.id }})">
+                                <i class="far fa-thumbs-up me-1"></i>Like
+                                <span id="like-count-{{ post.id }}">({{ post.like_count }})</span>
+                            </button>
+                            
+                            <button class="post-action-btn" onclick="toggleComments({{ post.id }})">
+                                <i class="far fa-comment me-1"></i>Comment
+                                <span>({{ post.comment_count }})</span>
+                            </button>
+                            
+                            <button class="post-action-btn">
+                                <i class="far fa-share-square me-1"></i>Share
+                            </button>
+                        </div>
+
+                        <!-- Comments Section -->
+                        <div id="comments-{{ post.id }}" style="display: none;">
+                            <div class="comment-box">
+                                <div class="comments-container mb-3">
+                                    <!-- Comments will be loaded here -->
+                                </div>
+                                
+                                {% if session.user_id %}
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if current_user and current_user.avatar %}{{ current_user.avatar }}{% else %}https://via.placeholder.com/32x32/1877f2/ffffff?text={{ session.name[0] }}{% endif %}" 
+                                         class="avatar me-2 lazy-img" style="width: 32px; height: 32px; object-fit: cover;" alt="Avatar" loading="lazy">
+                                    <div class="flex-grow-1">
+                                        <textarea class="form-control form-control-sm" id="comment-input-{{ post.id }}" 
+                                                placeholder="Write a comment..." rows="1"></textarea>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary ms-2" onclick="submitComment({{ post.id }})">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                                {% else %}
+                                <p class="text-muted text-center">
+                                    <a href="{{ url_for('login') }}">Login</a> to comment
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if not loop.last %}<hr class="my-0">{% endif %}
+                    {% endfor %}
+
+                    {% if not posts %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No posts yet</h4>
+                        <p class="text-muted">{{ user.name }} hasn't shared anything yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load friend count and recent friends
+    loadProfileStats();
+    initLazyLoading();
+});
+
+function loadProfileStats() {
+    // Load friend count for the profile user
+    fetch('/get_friends')
+    .then(response => response.json())
+    .then(friends => {
+        document.getElementById('friends-count').textContent = friends.length;
+        document.getElementById('friends-badge').textContent = friends.length;
+        
+        // Show recent friends (first 6)
+        const recentFriends = document.getElementById('recent-friends');
+        if (friends.length > 0) {
+            let html = '<div class="row g-3">';
+            friends.slice(0, 6).forEach(friend => {
+                html += `
+                    <div class="col-4">
+                        <div class="friend-card text-center p-2 rounded-3 h-100" 
+                             style="transition: all 0.3s ease; border: 1px solid #e9ecef;">
+                            <div class="position-relative d-inline-block mb-2">
+                                <img src="${friend.avatar || 'https://via.placeholder.com/50x50/1877f2/ffffff?text=' + friend.name[0]}" 
+                                     class="rounded-circle lazy-img shadow-sm" 
+                                     style="width: 50px; height: 50px; object-fit: cover; border: 3px solid #fff;" 
+                                     alt="${friend.name}"
+                                     loading="lazy">
+                                <div class="position-absolute bottom-0 end-0" 
+                                     style="width: 14px; height: 14px; background: #42b883; border: 2px solid #fff; border-radius: 50%;"></div>
+                            </div>
+                            <div class="small mt-1">
+                                <a href="/profile/${friend.username}" 
+                                   class="text-decoration-none fw-medium d-block text-truncate" 
+                                   style="max-width: 70px; color: #1877f2; font-size: 0.8rem;"
+                                   title="${friend.name}">
+                                    ${friend.name.split(' ')[0]}
+                                </a>
+                                <div class="text-muted" style="font-size: 0.7rem;">
+                                    @${friend.username.length > 8 ? friend.username.substring(0, 8) + '...' : friend.username}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            if (friends.length > 6) {
+                html += `
+                    <div class="text-center mt-3">
+                        <a href="/friends" class="btn btn-outline-primary btn-sm rounded-pill px-3" 
+                           style="font-size: 0.8rem;">
+                            <i class="fas fa-users me-1"></i>View All ${friends.length} Friends
+                        </a>
+                    </div>
+                `;
+            }
+            recentFriends.innerHTML = html;
+            
+            // Add hover effects
+            document.querySelectorAll('.friend-card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    this.style.borderColor = '#1877f2';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = 'none';
+                    this.style.borderColor = '#e9ecef';
+                });
+            });
+        } else {
+            recentFriends.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-user-friends text-muted mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                    <p class="text-muted mb-0" style="font-size: 0.9rem;">No friends yet</p>
+                    <small class="text-muted">Start connecting with people!</small>
+                </div>
+            `;
+        }
+        
+        // Re-initialize lazy loading for new images
+        initLazyLoading();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('friends-count').textContent = '0';
+        document.getElementById('recent-friends').innerHTML = '<p class="text-muted text-center small">Unable to load friends</p>';
+    });
+}
+</script>
+
+<!-- Cover Photo Modal -->
+<div class="modal fade" id="coverPhotoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('update_cover_photo') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-image me-2"></i>Update Cover Photo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cover_photo_url" class="form-label">
+                            <i class="fas fa-link me-1"></i>Photo URL
+                        </label>
+                        <input type="url" class="form-control" id="cover_photo_url" name="cover_photo_url" 
+                               placeholder="https://example.com/your-cover-photo.jpg">
+                        <div class="form-text">Enter a URL to your cover photo</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cover_photo_file" class="form-label">
+                            <i class="fas fa-upload me-1"></i>Upload Photo
+                        </label>
+                        <input type="file" class="form-control" id="cover_photo_file" name="cover_photo_file" accept="image/*">
+                        <div class="form-text">Or upload a photo from your device</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="getRandomCoverPhoto()">
+                            <i class="fas fa-random me-1"></i>Get Random Cover Photo
+                        </button>
+                    </div>
+                    
+                    <div id="cover-preview-container" style="display: none;">
+                        <label class="form-label">Preview:</label>
+                        <div style="height: 200px; background-size: cover; background-position: center; border-radius: 8px; border: 1px solid #ddd;" id="cover-preview"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Update Cover Photo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Cover photo preview functionality
+    document.getElementById('cover_photo_url').addEventListener('input', function() {
+        const url = this.value;
+        const preview = document.getElementById('cover-preview');
+        const container = document.getElementById('cover-preview-container');
+        
+        if (url && isValidUrl(url)) {
+            preview.style.backgroundImage = `url('${url}')`;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    });
+
+    document.getElementById('cover_photo_file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('cover-preview');
+        const container = document.getElementById('cover-preview-container');
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.style.backgroundImage = `url('${e.target.result}')`;
+                container.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            
+            // Clear URL input
+            document.getElementById('cover_photo_url').value = '';
+        }
+    });
+
+    async function getRandomCoverPhoto() {
+        try {
+            const randomId = Math.floor(Math.random() * 1000) + 1;
+            const coverUrl = `https://picsum.photos/1200/400?random=${randomId}`;
+            
+            document.getElementById('cover_photo_url').value = coverUrl;
+            document.getElementById('cover-preview').style.backgroundImage = `url('${coverUrl}')`;
+            document.getElementById('cover-preview-container').style.display = 'block';
+            
+            // Clear file input
+            document.getElementById('cover_photo_file').value = '';
+        } catch (error) {
+            console.error('Error getting random cover photo:', error);
+            alert('Failed to get random cover photo. Please try again.');
+    }
+}
+
+// Friend request functions
+function sendFriendRequest(userId) {
+    fetch('/send_friend_request', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ receiver_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            // Reload page to update friend status
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error || 'Failed to send friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error sending friend request', 'danger');
+    });
+}
+
+function respondToFriendRequest(userId, action) {
+    fetch('/respond_friend_request', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            sender_id: userId,
+            action: action 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            // Reload page to update friend status
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error || 'Failed to respond to friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error responding to friend request', 'danger');
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+
+// Start conversation from profile and redirect to messages
+function startConversationFromProfile(userId) {
+    fetch('/start_conversation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Opening chat...', 'success');
+            // Redirect to messages page with user parameter
+            setTimeout(() => {
+                window.location.href = `/messages?user=${userId}`;
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Error starting conversation', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error starting conversation', 'danger');
+    });
+}    function isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+</script>
+{% endblock %}

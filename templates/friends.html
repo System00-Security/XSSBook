@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Friends - XSSBook{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Friends & Requests
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Friend Requests Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-user-plus me-2"></i>Friend Requests
+                    </h5>
+                    <div id="friend-requests-container">
+                        <!-- Friend requests will be loaded here -->
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Friends List Section -->
+                <div>
+                    <h5 class="mb-3">
+                        <i class="fas fa-user-friends me-2"></i>My Friends
+                    </h5>
+                    <div id="friends-container">
+                        <!-- Friends will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suggested Friends -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-check me-2"></i>People You May Know
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="suggested-friends-container">
+                    <!-- Suggested friends will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFriendRequests();
+        loadFriends();
+        loadSuggestedFriends();
+    });
+
+    function loadFriends() {
+        fetch('/get_friends')
+        .then(response => response.json())
+        .then(friends => {
+            const container = document.getElementById('friends-container');
+            let html = '';
+            friends.forEach(friend => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <img src="${friend.avatar || 'https://via.placeholder.com/50x50/1877f2/ffffff?text=' + friend.name[0]}" 
+                                     class="avatar me-3" alt="Avatar">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">
+                                        <a href="/profile/${friend.username}" class="text-decoration-none">
+                                            ${friend.name}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">@${friend.username}</small>
+                                    <p class="mb-0 mt-1 text-muted small">${friend.bio || 'No bio available'}</p>
+                                </div>
+                                <div>
+                                    <a href="/profile/${friend.username}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View Profile
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html || '<p class="text-muted text-center">You have no friends yet. Start connecting with people!</p>';
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function loadSuggestedFriends() {
+        // This would typically fetch users who are not friends
+        // For now, we'll show all users except current user and friends
+        fetch('/get_all_users')
+        .then(response => response.json())
+        .then(users => {
+            const container = document.getElementById('suggested-friends-container');
+            let html = '';
+            users.slice(0, 5).forEach(user => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <img src="${user.avatar || 'https://via.placeholder.com/50x50/1877f2/ffffff?text=' + user.name[0]}" 
+                                     class="avatar me-3" alt="Avatar">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">
+                                        <a href="/profile/${user.username}" class="text-decoration-none">
+                                            ${user.name}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">@${user.username}</small>
+                                    <p class="mb-0 mt-1 text-muted small">${user.bio || 'No bio available'}</p>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-primary" onclick="sendFriendRequest(${user.id})">
+                                        <i class="fas fa-user-plus me-1"></i>Add Friend
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html || '<p class="text-muted text-center">No suggestions available</p>';
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+{% endblock %}

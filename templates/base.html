@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}XSSBook - Vulnerable Social Network{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --facebook-blue: #1877f2;
+            --facebook-light-blue: #42a5f5;
+            --facebook-dark-blue: #166fe5;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        
+        .logo-x {
+            background-color: white;
+            color: var(--facebook-blue);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .navbar {
+            background-color: var(--facebook-blue) !important;
+        }
+        
+        .btn-primary {
+            background-color: var(--facebook-blue);
+            border-color: var(--facebook-blue);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--facebook-dark-blue);
+            border-color: var(--facebook-dark-blue);
+        }
+        
+        .post-card {
+            border: 1px solid #e3e6ea;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            background: white;
+        }
+        
+        .post-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e3e6ea;
+        }
+        
+        .post-content {
+            padding: 0 16px 12px;
+        }
+        
+        .post-actions {
+            padding: 8px 16px;
+            border-top: 1px solid #e3e6ea;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .post-action-btn {
+            flex: 1;
+            border: none;
+            background: none;
+            padding: 8px;
+            color: #65676b;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        .post-action-btn:hover {
+            background-color: #f2f3f5;
+            border-radius: 4px;
+        }
+        
+        .post-action-btn.liked {
+            color: var(--facebook-blue);
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .avatar-large {
+            width: 168px;
+            height: 168px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        }
+        
+        .cover-photo {
+            height: 300px;
+            background: linear-gradient(135deg, var(--facebook-blue), var(--facebook-light-blue));
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .profile-header {
+            position: relative;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .profile-info {
+            position: absolute;
+            bottom: -84px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .profile-details {
+            flex: 1;
+            min-width: 0; /* Allow flex items to shrink */
+        }
+        
+        .profile-details h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+            color: #1c1e21;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.2;
+        }
+        
+        .profile-details p {
+            margin: 0;
+            color: #65676b;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .cover-photo {
+                height: 200px;
+            }
+            
+            .profile-info {
+                position: static;
+                margin-top: -60px;
+                padding: 20px;
+                background: white;
+                border-radius: 0 0 8px 8px;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                gap: 12px;
+            }
+            
+            .profile-details h1 {
+                font-size: 24px;
+            }
+            
+            .avatar-large {
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .profile-details h1 {
+                font-size: 20px;
+            }
+            
+            .cover-photo {
+                height: 150px;
+            }
+            
+            .profile-info {
+                margin-top: -40px;
+                padding: 15px;
+            }
+        }
+        
+        .comment-box {
+            border-top: 1px solid #e3e6ea;
+            padding: 12px 16px;
+        }
+        
+        .comment-item {
+            background-color: #f2f3f5;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: var(--facebook-blue);
+            font-size: 13px;
+        }
+        
+        .comment-content {
+            font-size: 14px;
+            color: #1c1e21;
+            margin-top: 2px;
+        }
+        
+        .create-post-box {
+            background: white;
+            border: 1px solid #e3e6ea;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .search-highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 0;
+            margin-top: 40px;
+            border-top: 1px solid #e3e6ea;
+        }
+        
+        /* Lazy loading styles */
+        .lazy-img {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .lazy-img.loaded {
+            opacity: 1;
+        }
+        
+        .img-placeholder {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Profile page improvements */
+        .profile-stats {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--facebook-blue);
+        }
+        
+        .stat-label {
+            color: #65676b;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .profile-actions {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .friend-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #42b883;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <span class="logo-x me-2">X</span>XSSBook
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link" href="{{ url_for('index') }}">
+                        <i class="fas fa-home me-1"></i>Home
+                    </a>
+                    {% if session.user_id %}
+                    <a class="nav-link" href="{{ url_for('friends_page') }}">
+                        <i class="fas fa-users me-1"></i>Friends
+                    </a>
+                    <a class="nav-link" href="{{ url_for('messages') }}">
+                        <i class="fas fa-comments me-1"></i>Messages
+                    </a>
+                    {% endif %}
+                    <a class="nav-link" href="{{ url_for('personalize') }}">
+                        <i class="fas fa-user-cog me-1"></i>Personalize
+                    </a>
+                </div>
+                
+                <!-- Search Bar -->
+                <form class="d-flex me-3" action="{{ url_for('search') }}" method="GET">
+                    <input class="form-control me-2" type="search" name="q" placeholder="Search XSSBook..." 
+                           value="{{ request.args.get('q', '') }}">
+                    <button class="btn btn-outline-light" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                
+                <div class="navbar-nav">
+                    {% if session.user_id %}
+                        <!-- Notifications -->
+                        <div class="nav-item dropdown me-2">
+                            <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" id="notificationDropdown">
+                                <i class="fas fa-bell"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notification-count" style="font-size: 10px; display: none;">
+                                    0
+                                </span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                                <li><h6 class="dropdown-header">Notifications</h6></li>
+                                <div id="notifications-container">
+                                    <li><span class="dropdown-item-text text-muted">Loading notifications...</span></li>
+                                </div>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-center" href="#" onclick="markAllNotificationsRead()">Mark all as read</a></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ session.name }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('profile', username=session.username) }}">
+                                    <i class="fas fa-user me-2"></i>My Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('friends_page') }}">
+                                    <i class="fas fa-users me-2"></i>Friends
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('edit_profile') }}">
+                                    <i class="fas fa-edit me-2"></i>Edit Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="generateFriendRequests()">
+                                    <i class="fas fa-user-plus me-2"></i>Get Friend Suggestions
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                </a></li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <a class="nav-link" href="{{ url_for('login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i>Login
+                        </a>
+                        <a class="nav-link" href="{{ url_for('register') }}">
+                            <i class="fas fa-user-plus me-1"></i>Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for message in messages %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><span class="logo-x me-2">X</span>XSSBook</h5>
+                    <p class="text-muted">A deliberately vulnerable social networking site for XSS learning.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Educational purposes only • {{ 2025 }}
+                    </p>
+                    <small class="text-danger">
+                        <i class="fas fa-bug me-1"></i>
+                        This application contains intentional security vulnerabilities
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Like functionality
+        function likePost(postId) {
+            fetch('/like_post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({post_id: postId})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Please log in to like posts');
+                    return;
+                }
+                
+                const likeBtn = document.querySelector(`[onclick="likePost(${postId})"]`);
+                const likeCount = document.querySelector(`#like-count-${postId}`);
+                
+                if (data.liked) {
+                    likeBtn.classList.add('liked');
+                    likeBtn.innerHTML = '<i class="fas fa-thumbs-up me-1"></i>Liked';
+                } else {
+                    likeBtn.classList.remove('liked');
+                    likeBtn.innerHTML = '<i class="far fa-thumbs-up me-1"></i>Like';
+                }
+                
+                likeCount.textContent = data.like_count;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Show/hide comments
+        function toggleComments(postId) {
+            const commentsDiv = document.getElementById(`comments-${postId}`);
+            const btn = document.querySelector(`[onclick="toggleComments(${postId})"]`);
+            
+            if (commentsDiv.style.display === 'none' || commentsDiv.style.display === '') {
+                // Load and show comments
+                fetch(`/get_comments/${postId}`)
+                .then(response => response.json())
+                .then(comments => {
+                    let html = '';
+                comments.forEach(comment => {
+                    const avatarUrl = comment.avatar || `https://via.placeholder.com/32x32/1877f2/ffffff?text=${comment.name.charAt(0)}`;
+                    html += `
+                        <div class="comment-item d-flex align-items-start mb-2">
+                            <img src="${avatarUrl}" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;" alt="Avatar">
+                            <div class="flex-grow-1">
+                                <div class="comment-author small fw-bold">${comment.name} (@${comment.username})</div>
+                                <div class="comment-content">${comment.content}</div>
+                            </div>
+                        </div>
+                    `;
+                });                    const commentsContainer = commentsDiv.querySelector('.comments-container');
+                    commentsContainer.innerHTML = html;
+                    
+                    commentsDiv.style.display = 'block';
+                    btn.innerHTML = '<i class="far fa-comment me-1"></i>Hide Comments';
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                commentsDiv.style.display = 'none';
+                btn.innerHTML = '<i class="far fa-comment me-1"></i>Comment';
+            }
+        }
+        
+        // Submit comment
+        function submitComment(postId) {
+            const textarea = document.querySelector(`#comment-input-${postId}`);
+            const content = textarea.value.trim();
+            
+            if (!content) return;
+            
+            const formData = new FormData();
+            formData.append('post_id', postId);
+            formData.append('content', content);
+            
+            fetch('/add_comment', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    textarea.value = '';
+                    // Refresh comments
+                    const commentsDiv = document.getElementById(`comments-${postId}`);
+                    commentsDiv.style.display = 'none';
+                    toggleComments(postId);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Handle media selection for posts
+        function selectMediaType(type) {
+            const imageUrl = document.getElementById('image_url');
+            const videoUrl = document.getElementById('video_url');
+            const fileInput = document.getElementById('file');
+            
+            // Reset all inputs
+            imageUrl.style.display = 'none';
+            videoUrl.style.display = 'none';
+            fileInput.style.display = 'none';
+            
+            if (type === 'image') {
+                imageUrl.style.display = 'block';
+                imageUrl.placeholder = 'Enter image URL or use random: https://picsum.photos/800/600';
+            } else if (type === 'video') {
+                videoUrl.style.display = 'block';
+            } else if (type === 'upload') {
+                fileInput.style.display = 'block';
+            }
+        }
+        
+        // Auto-fill random image
+        function useRandomImage() {
+            const imageUrl = document.getElementById('image_url');
+            imageUrl.value = `https://picsum.photos/800/600?random=${Date.now()}`;
+        }
+        
+        // Friend request functionality
+        function sendFriendRequest(receiverId) {
+            fetch('/send_friend_request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({receiver_id: receiverId})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // Try to update friend actions on profile pages
+                    const friendActions = document.getElementById('friend-actions');
+                    if (friendActions) {
+                        friendActions.innerHTML = '<span class="text-muted"><i class="fas fa-clock me-1"></i>Friend request sent</span>';
+                    }
+                    
+                    // Try to update the button that was clicked
+                    const buttons = document.querySelectorAll(`button[onclick="sendFriendRequest(${receiverId})"]`);
+                    buttons.forEach(btn => {
+                        btn.outerHTML = '<span class="text-muted"><i class="fas fa-clock me-1"></i>Request sent</span>';
+                    });
+                    
+                    alert('Friend request sent successfully!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to send friend request. Please try again.');
+            });
+        }
+        
+        function respondToFriendRequest(requestId, action) {
+            fetch('/respond_friend_request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({request_id: requestId, action: action})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // Reload friend requests
+                    loadFriendRequests();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function loadFriendRequests() {
+            fetch('/get_friend_requests')
+            .then(response => response.json())
+            .then(requests => {
+                const container = document.getElementById('friend-requests-container');
+                if (container) {
+                    let html = '';
+                    requests.forEach(req => {
+                        html += `
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <img src="${req.avatar || 'https://via.placeholder.com/50x50/1877f2/ffffff?text=' + req.name[0]}" 
+                                             class="avatar me-3" alt="Avatar">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0">${req.name}</h6>
+                                            <small class="text-muted">@${req.username}</small>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm btn-success me-2" onclick="respondToFriendRequest(${req.id}, 'accept')">
+                                                <i class="fas fa-check me-1"></i>Accept
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" onclick="respondToFriendRequest(${req.id}, 'decline')">
+                                                <i class="fas fa-times me-1"></i>Decline
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html || '<p class="text-muted text-center">No pending friend requests</p>';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Lazy loading functionality
+        function initLazyLoading() {
+            const lazyImages = document.querySelectorAll('.lazy-img');
+            
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                            }
+                            img.classList.add('loaded');
+                            observer.unobserve(img);
+                        }
+                    });
+                });
+                
+                lazyImages.forEach(img => {
+                    imageObserver.observe(img);
+                });
+            } else {
+                // Fallback for browsers without IntersectionObserver
+                lazyImages.forEach(img => {
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                    img.classList.add('loaded');
+                });
+            }
+        }
+        
+        // Initialize lazy loading on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initLazyLoading();
+            {% if session.user_id %}
+                loadNotifications();
+                // Check for notifications every 30 seconds
+                setInterval(loadNotifications, 30000);
+            {% endif %}
+        });
+        
+        // Notification functions
+        function loadNotifications() {
+            fetch('/get_notifications')
+            .then(response => response.json())
+            .then(notifications => {
+                const container = document.getElementById('notifications-container');
+                const countBadge = document.getElementById('notification-count');
+                
+                if (notifications.length === 0) {
+                    container.innerHTML = '<li><span class="dropdown-item-text text-muted">No notifications</span></li>';
+                    countBadge.style.display = 'none';
+                    return;
+                }
+                
+                let unreadCount = 0;
+                let html = '';
+                
+                notifications.forEach(notification => {
+                    if (!notification.is_read) unreadCount++;
+                    
+                    const timeAgo = timeAgoFormat(notification.created_at);
+                    const isRead = notification.is_read ? 'text-muted' : '';
+                    
+                    html += `
+                        <li>
+                            <a class="dropdown-item ${isRead}" href="#" onclick="markNotificationRead(${notification.id})">
+                                <div class="d-flex align-items-start">
+                                    ${notification.related_user_avatar ? 
+                                        `<img src="${notification.related_user_avatar}" class="rounded-circle me-2" style="width: 32px; height: 32px;">` : 
+                                        '<i class="fas fa-bell me-2 mt-1"></i>'
+                                    }
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold small">${notification.message}</div>
+                                        <small class="text-muted">${timeAgo}</small>
+                                    </div>
+                                    ${!notification.is_read ? '<div class="badge bg-primary rounded-pill ms-1"></div>' : ''}
+                                </div>
+                            </a>
+                        </li>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+                if (unreadCount > 0) {
+                    countBadge.textContent = unreadCount;
+                    countBadge.style.display = 'inline';
+                } else {
+                    countBadge.style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Error loading notifications:', error));
+        }
+        
+        function markNotificationRead(notificationId) {
+            fetch('/mark_notification_read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({notification_id: notificationId})
+            })
+            .then(() => loadNotifications())
+            .catch(error => console.error('Error marking notification as read:', error));
+        }
+        
+        function markAllNotificationsRead() {
+            // Mark all visible notifications as read
+            const notifications = document.querySelectorAll('[onclick^="markNotificationRead"]');
+            notifications.forEach(notification => {
+                const onclick = notification.getAttribute('onclick');
+                const notificationId = onclick.match(/\d+/)[0];
+                markNotificationRead(parseInt(notificationId));
+            });
+        }
+        
+        function generateFriendRequests() {
+            fetch('/generate_friend_requests')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Friend suggestions generated! Check your friend requests.');
+                    loadNotifications();
+                } else {
+                    alert('Failed to generate friend suggestions.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to generate friend suggestions.');
+            });
+        }
+        
+        function timeAgoFormat(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'Just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        }
+    </script>
+</body>
+</html>

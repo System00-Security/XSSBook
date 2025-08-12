@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - XSSBook{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-search me-2"></i>Search Results
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if query %}
+                    <!-- Search highlighting -->
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Showing results for: <strong>{{ query|safe }}</strong>
+                    </div>
+
+                    <!-- Advanced Search Tips -->
+                    <div class="mb-3">
+                        <h6>Search Tips:</h6>
+                        <small class="text-muted">
+                            Try searching for: "script", "alert", "onerror", or user names like "Leanne"
+                        </small>
+                    </div>
+
+                    {% if results %}
+                        <p class="text-muted mb-3">Found {{ results|length }} result(s)</p>
+                        
+                        {% for post in results %}
+                        <div class="post-card">
+                            <!-- Post Header -->
+                            <div class="post-header">
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if post.avatar %}{{ post.avatar }}{% else %}https://via.placeholder.com/40x40/1877f2/ffffff?text={{ post.name[0] }}{% endif %}" 
+                                         class="avatar me-3" alt="Avatar">
+                                    <div>
+                                        <h6 class="mb-0">
+                                            <a href="{{ url_for('profile', username=post.username) }}" class="text-decoration-none">
+                                                {{ post.name }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted">@{{ post.username }} • {{ post.created_at }}</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Post Content with Search Highlighting -->
+                            <div class="post-content">
+                            <!-- Search highlighting -->
+                            {% set highlighted_content = post.content.replace(query, '<span class="search-highlight">' + query + '</span>') %}
+                            <p class="mb-3">{{ highlighted_content|safe }}</p>                                <!-- Media Content -->
+                                {% if post.image_url %}
+                                <div class="mb-3">
+                                    <img src="{{ post.image_url }}" class="img-fluid rounded" alt="Post image" 
+                                         style="max-width: 100%; height: auto;">
+                                </div>
+                                {% endif %}
+                                
+                                {% if post.video_url %}
+                                <div class="mb-3">
+                                    <video controls class="w-100 rounded" style="max-height: 400px;">
+                                        <source src="{{ post.video_url }}" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Post Actions -->
+                            <div class="post-actions">
+                                <button class="post-action-btn" onclick="likePost({{ post.id }})">
+                                    <i class="far fa-thumbs-up me-1"></i>Like
+                                </button>
+                                
+                                <button class="post-action-btn" onclick="toggleComments({{ post.id }})">
+                                    <i class="far fa-comment me-1"></i>Comment
+                                </button>
+                                
+                                <button class="post-action-btn">
+                                    <i class="far fa-share-square me-1"></i>Share
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">No results found</h4>
+                            <p class="text-muted">
+                                No posts or users match your search for 
+                                "<strong>{{ query|safe }}</strong>"
+                            </p>
+                            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                <i class="fas fa-home me-1"></i>Back to Feed
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">Search XSSBook</h4>
+                        <p class="text-muted">Enter a search term to find posts and users.</p>
+                        
+                        <!-- Search Form -->
+                        <form action="{{ url_for('search') }}" method="GET" class="mt-4">
+                            <div class="input-group input-group-lg">
+                                <input type="text" class="form-control" name="q" 
+                                       placeholder="Search for posts, users, or content..." required>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search me-1"></i>Search
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
