@@ -1245,18 +1245,19 @@ def send_message():
         VALUES (?, ?, ?)
     ''', (session['user_id'], receiver_id, content))
     
-    # Check if receiver is a dummy user (check if password matches 'password123')
+    # Check if receiver is a dummy user (check if password is 'password123')
     receiver = conn.execute('SELECT * FROM users WHERE id = ?', (receiver_id,)).fetchone()
     is_dummy = False
     if receiver:
-        # Check if the user's password is the default 'password123'
+        # Check if this user has the default dummy password
         is_dummy = check_password_hash(receiver['password_hash'], 'password123')
-        print(f"Checking if user {receiver['name']} (ID: {receiver_id}) is dummy: {is_dummy}")  # Debug
+        print(f"User {receiver['name']} (@{receiver['username']}) is dummy: {is_dummy}")  # Debug
     
     if is_dummy:
-        print(f"Generating response for dummy user {receiver['name']}")  # Debug
+        print(f"Generating ML response for dummy user {receiver['name']}")  # Debug
         # Generate ML-based response from dummy user
         try:
+            from chat_engine import chat_engine
             response = chat_engine.get_response(content, receiver['name'])
             print(f"Generated response: {response}")  # Debug
             
@@ -1266,17 +1267,20 @@ def send_message():
                 VALUES (?, ?, ?)
             ''', (receiver_id, session['user_id'], response))
             
-            print(f"Dummy user {receiver['name']} responded: {response}")  # Debug
+            print(f"SUCCESS: Dummy user {receiver['name']} responded")  # Debug
         except Exception as e:
-            print(f"Error generating response: {e}")  # Debug
+            print(f"ERROR generating response: {e}")  # Debug
+            import traceback
+            traceback.print_exc()
             # Fallback response if chat engine fails
             fallback_response = "That's interesting! Tell me more about that."
             conn.execute('''
                 INSERT INTO messages (sender_id, receiver_id, content)
                 VALUES (?, ?, ?)
             ''', (receiver_id, session['user_id'], fallback_response))
+            print(f"Used fallback response")  # Debug
     else:
-        print(f"User {receiver['name'] if receiver else 'Unknown'} (ID: {receiver_id}) is not a dummy user")  # Debug
+        print(f"User {receiver['name'] if receiver else 'Unknown'} is not a dummy user")  # Debug
     
     conn.commit()
     conn.close()
@@ -1311,6 +1315,7 @@ def start_conversation():
         other_user = conn.execute('SELECT * FROM users WHERE id = ?', (other_user_id,)).fetchone()
         is_dummy = False
         if other_user:
+            # Check if this user has the default dummy password
             is_dummy = check_password_hash(other_user['password_hash'], 'password123')
         
         if is_dummy:
@@ -1323,6 +1328,7 @@ def start_conversation():
                 ''', (other_user_id, session['user_id'], starter_message))
                 conn.commit()
             except Exception as e:
+                print(f"ERROR generating starter: {e}")  # Debug
                 # Fallback starter
                 conn.execute('''
                     INSERT INTO messages (sender_id, receiver_id, content)
